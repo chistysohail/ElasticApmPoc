@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "ElasticApmPoc": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}
