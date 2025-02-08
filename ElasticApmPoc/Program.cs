@@ -21,13 +21,13 @@ class Program
         string environment = configuration["ElasticApm:Environment"];
         string secretToken = configuration["ElasticApm:SecretToken"];
 
-        // Set Elastic APM environment variables
+        // Set APM Environment Variables
         Environment.SetEnvironmentVariable("ELASTIC_APM_SERVER_URL", apmServerUrl);
         Environment.SetEnvironmentVariable("ELASTIC_APM_SERVICE_NAME", serviceName);
         Environment.SetEnvironmentVariable("ELASTIC_APM_ENVIRONMENT", environment);
         Environment.SetEnvironmentVariable("ELASTIC_APM_SECRET_TOKEN", secretToken);
 
-        // Start a transaction manually
+        // Start an APM Transaction
         var transaction = Agent.Tracer.StartTransaction("SampleTransaction", ApiConstants.TypeRequest);
 
         try
