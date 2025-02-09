@@ -21,13 +21,22 @@ class Program
         string environment = configuration["ElasticApm:Environment"];
         string secretToken = configuration["ElasticApm:SecretToken"];
 
-        // Set APM Environment Variables
+        // Set Elastic APM environment variables
         Environment.SetEnvironmentVariable("ELASTIC_APM_SERVER_URL", apmServerUrl);
         Environment.SetEnvironmentVariable("ELASTIC_APM_SERVICE_NAME", serviceName);
         Environment.SetEnvironmentVariable("ELASTIC_APM_ENVIRONMENT", environment);
         Environment.SetEnvironmentVariable("ELASTIC_APM_SECRET_TOKEN", secretToken);
 
-        // Start an APM Transaction
+        // Check APM Connection
+        bool isConnected = await CheckApmConnection(apmServerUrl);
+        if (!isConnected)
+        {
+            Console.WriteLine("[ERROR] Unable to connect to APM Server. Check configuration.");
+            return;
+        }
+        Console.WriteLine("[INFO] Connected to APM Server successfully.");
+
+        // Start a transaction manually
         var transaction = Agent.Tracer.StartTransaction("SampleTransaction", ApiConstants.TypeRequest);
 
         try
@@ -54,6 +63,20 @@ class Program
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
             .Build();
+    }
+
+    static async Task<bool> CheckApmConnection(string apmServerUrl)
+    {
+        try
+        {
+            using HttpClient client = new();
+            var response = await client.GetAsync(apmServerUrl);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     static async Task SimulateHttpCall()
