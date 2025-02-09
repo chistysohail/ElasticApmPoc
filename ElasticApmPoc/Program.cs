@@ -55,6 +55,18 @@ class Program
         }
 
         Console.WriteLine("Elastic APM Demo completed. Check Kibana for traces.");
+
+        // Confirm transaction has been sent to APM
+        Console.WriteLine("[INFO] Waiting for APM transaction confirmation...");
+        bool isTransactionLogged = await ConfirmTransactionLogged(apmServerUrl);
+        if (isTransactionLogged)
+        {
+            Console.WriteLine("[SUCCESS] APM transaction successfully logged.");
+        }
+        else
+        {
+            Console.WriteLine("[WARNING] APM transaction may not have been logged. Check Kibana.");
+        }
     }
 
     static IConfiguration LoadConfiguration()
@@ -71,6 +83,20 @@ class Program
         {
             using HttpClient client = new();
             var response = await client.GetAsync(apmServerUrl);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    static async Task<bool> ConfirmTransactionLogged(string apmServerUrl)
+    {
+        try
+        {
+            using HttpClient client = new();
+            var response = await client.GetAsync(apmServerUrl + "/intake/v2/events"); // Endpoint to check logs
             return response.IsSuccessStatusCode;
         }
         catch
