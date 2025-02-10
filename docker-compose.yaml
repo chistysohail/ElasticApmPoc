@@ -1,0 +1,167 @@
+version: "3.8"
+
+networks:
+  elastic_network:  # Define a common network
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - elastic_network  
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - elastic_network
+
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:8.11.0
+    container_name: apm-server
+    environment:
+      - output.elasticsearch.hosts=http://elasticsearch:9200  # ✅ Fixed Syntax (was inside `[]`)
+      - apm-server.kibana.enabled=false  # ✅ Disable Kibana central config to avoid errors
+    ports:
+      - "8200:8200"
+    depends_on:
+      - elasticsearch
+    networks:
+      - elastic_network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: elasticapmpoc-app
+    environment:
+      - ELASTIC_APM_SERVER_URL=http://apm-server:8200
+      - ELASTIC_APM_SERVICE_NAME=ElasticApmPoc
+      - ELASTIC_APM_ENVIRONMENT=production
+      - ASPNETCORE_URLS=http://+:5000  # ✅ Ensure the app binds to the correct port
+    depends_on:
+      - apm-server
+    ports:
+      - "5000:5000"
+    networks:
+      - elastic_network  
+    restart: unless-stopped  # ✅ Ensures container restarts on failure
+
+
+# version: "3.8"
+
+# networks:
+#   elastic_network:  # Define a common network
+
+# services:
+#   elasticsearch:
+#     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+#     container_name: elasticsearch
+#     environment:
+#       - discovery.type=single-node
+#       - xpack.security.enabled=false
+#     ports:
+#       - "9200:9200"
+#       - "9300:9300"
+#     networks:
+#       - elastic_network  # Add network
+
+#   kibana:
+#     image: docker.elastic.co/kibana/kibana:8.11.0
+#     container_name: kibana
+#     environment:
+#       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+#     ports:
+#       - "5601:5601"
+#     depends_on:
+#       - elasticsearch
+#     networks:
+#       - elastic_network
+
+#   apm-server:
+#     image: docker.elastic.co/apm/apm-server:8.11.0
+#     container_name: apm-server
+#     environment:
+#       - output.elasticsearch.hosts=["http://elasticsearch:9200"]
+#     ports:
+#       - "8200:8200"
+#     depends_on:
+#       - elasticsearch
+#     networks:
+#       - elastic_network
+
+#   app:
+#     build:
+#       context: .
+#       dockerfile: Dockerfile
+#     container_name: elasticapmpoc-app
+#     environment:
+#       - ELASTIC_APM_SERVER_URL=http://apm-server:8200
+#     depends_on:
+#       - apm-server
+#     ports:
+#       - "5000:5000"
+#     networks:
+#       - elastic_network  # Ensure app is in the same network
+
+# version: "3.8"
+
+# services:
+#   elasticsearch:
+#     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+#     container_name: elasticsearch
+#     environment:
+#       - discovery.type=single-node
+#       - xpack.security.enabled=false
+#     ports:
+#       - "9200:9200"
+#       - "9300:9300"
+
+#   kibana:
+#     image: docker.elastic.co/kibana/kibana:8.11.0
+#     container_name: kibana
+#     environment:
+#       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+#     ports:
+#       - "5601:5601"
+#     depends_on:
+#       - elasticsearch
+
+#   apm-server:
+#     image: docker.elastic.co/apm/apm-server:8.11.0
+#     container_name: apm-server
+#     environment:
+#       - output.elasticsearch.hosts=["http://elasticsearch:9200"]
+#       - apm-server.rum.enabled=true
+#       - apm-server.host=0.0.0.0:8200
+#     ports:
+#       - "8200:8200"
+#     depends_on:
+#       - elasticsearch
+
+#   app:
+#     build:
+#       context: .
+#       dockerfile: Dockerfile
+#     container_name: elasticapmpoc-app
+#     environment:
+#       - ELASTIC_APM_SERVER_URL=http://apm-server:8200
+#       - ELASTIC_APM_SERVICE_NAME=ElasticApmPoc
+#       - ELASTIC_APM_ENVIRONMENT=my-environment
+#       - ELASTIC_APM_STARTUP_DELAY_SECONDS=5
+#     depends_on:
+#       - apm-server
+#     ports:
+#       - "5000:5000"

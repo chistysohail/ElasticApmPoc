@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using Elastic.Apm;
 using Elastic.Apm.Api;
 using Microsoft.Extensions.Configuration;
+using MongoDB.Bson.IO;
+using static System.Net.WebRequestMethods;
 
 class Program
 {
@@ -21,11 +23,21 @@ class Program
         string environment = configuration["ElasticApm:Environment"];
         string secretToken = configuration["ElasticApm:SecretToken"];
 
+        // Read delay from environment variable or appsettings.json
+        int startupDelay = GetConfigValue(configuration, "ElasticApm:StartupDelaySeconds", 10);
+        Console.WriteLine($"[INFO] Applying startup delay of {startupDelay} seconds...");
+        await Task.Delay(startupDelay * 1000);
+
         // Set Elastic APM environment variables
         Environment.SetEnvironmentVariable("ELASTIC_APM_SERVER_URL", apmServerUrl);
         Environment.SetEnvironmentVariable("ELASTIC_APM_SERVICE_NAME", serviceName);
         Environment.SetEnvironmentVariable("ELASTIC_APM_ENVIRONMENT", environment);
-        Environment.SetEnvironmentVariable("ELASTIC_APM_SECRET_TOKEN", secretToken);
+        if (!string.IsNullOrEmpty(secretToken))
+        {
+            Environment.SetEnvironmentVariable("ELASTIC_APM_SECRET_TOKEN", secretToken);
+        }
+
+        Console.WriteLine($"configuration:::apmServerUrl: {apmServerUrl}, serviceName: {serviceName}, environment: {environment}");
 
         // Check APM Connection
         bool isConnected = await CheckApmConnection(apmServerUrl);
@@ -55,18 +67,30 @@ class Program
         }
 
         Console.WriteLine("Elastic APM Demo completed. Check Kibana for traces.");
+    }
 
-        // Confirm transaction has been sent to APM
-        Console.WriteLine("[INFO] Waiting for APM transaction confirmation...");
-        bool isTransactionLogged = await ConfirmTransactionLogged(apmServerUrl);
-        if (isTransactionLogged)
+    // ✅ UPDATED HEALTH CHECK METHOD (Uses root `/` instead of `/healthcheck`)
+    static async Task<bool> CheckApmConnection(string apmServerUrl)
+    {
+        try
         {
-            Console.WriteLine("[SUCCESS] APM transaction successfully logged.");
+            using HttpClient client = new();
+            var response = await client.GetAsync(apmServerUrl); // ✅ USE ROOT `/`
+            return response.IsSuccessStatusCode;
         }
-        else
+        catch
         {
-            Console.WriteLine("[WARNING] APM transaction may not have been logged. Check Kibana.");
+            return false;
         }
+    }
+
+    // ✅ Updated Helper method to get config values from env vars or appsettings.json
+    static int GetConfigValue(IConfiguration configuration, string key, int defaultValue)
+    {
+        string envValue = Environment.GetEnvironmentVariable(key.Replace(":", "__"));
+        return !string.IsNullOrEmpty(envValue) && int.TryParse(envValue, out int envIntValue)
+            ? envIntValue
+            : configuration.GetValue<int>(key, defaultValue);
     }
 
     static IConfiguration LoadConfiguration()
@@ -75,34 +99,6 @@ class Program
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
             .Build();
-    }
-
-    static async Task<bool> CheckApmConnection(string apmServerUrl)
-    {
-        try
-        {
-            using HttpClient client = new();
-            var response = await client.GetAsync(apmServerUrl);
-            return response.IsSuccessStatusCode;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    static async Task<bool> ConfirmTransactionLogged(string apmServerUrl)
-    {
-        try
-        {
-            using HttpClient client = new();
-            var response = await client.GetAsync(apmServerUrl + "/intake/v2/events"); // Endpoint to check logs
-            return response.IsSuccessStatusCode;
-        }
-        catch
-        {
-            return false;
-        }
     }
 
     static async Task SimulateHttpCall()
@@ -127,3 +123,27 @@ class Program
         span?.End();
     }
 }
+
+
+//curl - X POST http://apm-server:8200/intake/v2/events \
+//-H "Content-Type: application/x-ndjson" \
+//-H "Authorization: Bearer YOUR_SECRET_TOKEN" \   # 👈 Add this if authentication is enabled
+//    --data - binary @- << EOF
+//{ "metadata":{ "service":{ "name":"test-service","agent":{ "name":"dotnet","version":"6.0.0"} } } }
+//{ "transaction":{ "id":"12345","type":"custom","duration":100,"timestamp":$(($(date +% s % N) / 1000)),"trace_id":"abcdef12345678901234567890123456","span_count":{ "started":0,"dropped":0} } }
+//EOF
+
+//Output_if_All_Good:
+//HTTP / 1.1 202 Accepted
+
+
+//Output_if_Issue:
+//{
+//    "accepted": 0,
+//    "errors": [
+//    {
+//        "message": "validation error: transaction: 'trace_id' required"
+//    }
+//    ]
+//}
+
