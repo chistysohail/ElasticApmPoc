@@ -133,6 +133,14 @@ class Program
 //{ "transaction":{ "id":"12345","type":"custom","duration":100,"timestamp":$(($(date +% s % N) / 1000)),"trace_id":"abcdef12345678901234567890123456","span_count":{ "started":0,"dropped":0} } }
 //EOF
 
+//linux
+//curl -X POST http://apm-server:8200/intake/v2/events -H "Content-Type: application/x-ndjson" --data-binary "{\"metadata\":{\"service\":{\"name\":\"test-service\",\"agent\":{\"name\":\"dotnet\",\"version\":\"6.0.0\"}}}}\n{\"transaction\":{\"id\":\"12345\",\"type\":\"custom\",\"duration\":100,\"timestamp\":$(($(date +%s%N)/1000)),\"trace_id\":\"abcdef12345678901234567890123456\",\"span_count\":{\"started\":0,\"dropped\":0}}}"
+// 
+
+//windows
+//curl -X POST http://apm-server:8200/intake/v2/events -H "Content-Type: application/x-ndjson" --data-binary "{\"metadata\":{\"service\":{\"name\":\"test-service\",\"agent\":{\"name\":\"dotnet\",\"version\":\"6.0.0\"}}}}\n{\"transaction\":{\"id\":\"12345\",\"type\":\"custom\",\"duration\":100,\"timestamp\":$(($(date +%s%N)/1000)),\"trace_id\":\"abcdef12345678901234567890123456\",\"span_count\":{\"started\":0,\"dropped\":0}}}"
+// 
+
 //Output_if_All_Good:
 //HTTP / 1.1 202 Accepted
 
